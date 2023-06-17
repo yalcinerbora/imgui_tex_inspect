@@ -41,9 +41,11 @@ enum InspectorFlags_
     InspectorFlags_NoAutoReadTexture    = 1 << 6,  // By default texture data is read to CPU every frame for tooltip and annotations
     InspectorFlags_FlipX                = 1 << 7,  // Horizontally flip the way the texture is displayed
     InspectorFlags_FlipY                = 1 << 8,  // Vertically flip the way the texture is displayed
+    InspectorFlags_NoZoomOut            = 1 << 9,  // Don't zoom out beyond images original size
+    InspectorFlags_NoBorder             = 1 << 10, // Don't render borders both around texture and around the inspector
 };
 
-/* Use one of these Size structs if you want to specify an exact size for the inspector panel. 
+/* Use one of these Size structs if you want to specify an exact size for the inspector panel.
  * E.g.
  * BeginInspectorPanel("MyPanel", texture_1K, ImVec2(1024,1024), 0, SizeExcludingBorder(ImVec2(1024,1024)));
  *
@@ -59,26 +61,26 @@ bool BeginInspectorPanel(const char *name, ImTextureID, ImVec2 textureSize, Insp
 bool BeginInspectorPanel(const char *name, ImTextureID, ImVec2 textureSize, InspectorFlags flags, SizeIncludingBorder size);
 bool BeginInspectorPanel(const char *name, ImTextureID, ImVec2 textureSize, InspectorFlags flags, SizeExcludingBorder size);
 
-/* EndInspectorPanel 
+/* EndInspectorPanel
  * Always call after BeginInspectorPanel and after you have drawn any required annotations*/
 void EndInspectorPanel();
 
 /* ReleaseInspectorData
- * ImGuiTexInspect keeps texture data cached in memory.  If you know you won't 
- * be displaying a particular panel for a while you can call this to release 
- * the memory. It won't be allocated again until next time you call 
- * BeginInspectorPanel.  If id is NULL then the current (most recent) inspector 
- * will be affected.  Unless you have a lot of different Inspector instances 
- * you can probably not worry about this. Call CurrentInspector_GetID to get 
- * the ID of an inspector. 
+ * ImGuiTexInspect keeps texture data cached in memory.  If you know you won't
+ * be displaying a particular panel for a while you can call this to release
+ * the memory. It won't be allocated again until next time you call
+ * BeginInspectorPanel.  If id is NULL then the current (most recent) inspector
+ * will be affected.  Unless you have a lot of different Inspector instances
+ * you can probably not worry about this. Call CurrentInspector_GetID to get
+ * the ID of an inspector.
  */
 void ReleaseInspectorData(ImGuiID id);
 
 //-------------------------------------------------------------------------
 // [SECTION] CURRENT INSPECTOR MANIPULATORS
 //-------------------------------------------------------------------------
-/* All the functions starting with CurrentInspector_ can be used after calling 
- * BeginInspector until the end of the frame.  It is not necessary to call them 
+/* All the functions starting with CurrentInspector_ can be used after calling
+ * BeginInspector until the end of the frame.  It is not necessary to call them
  * before the matching EndInspectorPanel
  */
 
@@ -93,28 +95,35 @@ void CurrentInspector_SetColorMatrix(const float (&colorMatrix)[16], const float
 void CurrentInspector_ResetColorMatrix();
 
 /* CurrentInspector_SetAlphaMode - see enum comments for details*/
-void CurrentInspector_SetAlphaMode(InspectorAlphaMode);  
+void CurrentInspector_SetAlphaMode(InspectorAlphaMode);
 void CurrentInspector_SetFlags(InspectorFlags toSet, InspectorFlags toClear = 0);
 inline void CurrentInspector_ClearFlags(InspectorFlags toClear) {CurrentInspector_SetFlags(0, toClear);}
 void CurrentInspector_SetGridColor(ImU32 color);
 void CurrentInspector_SetMaxAnnotations(int maxAnnotations);
 
 /* CurrentInspector_InvalidateTextureCache
- * If using the InspectorFlags_NoAutoReadTexture flag then call this to 
+ * If using the InspectorFlags_NoAutoReadTexture flag then call this to
  * indicate your texture has changed context.
  */
-void CurrentInspector_InvalidateTextureCache();                 
+void CurrentInspector_InvalidateTextureCache();
 
 /* CurrentInspector_SetCustomBackgroundColor
- * If using InspectorAlphaMode_CustomColor then this is the color that will be 
+ * If using InspectorAlphaMode_CustomColor then this is the color that will be
  * blended as the background where alpha is less than one.
  */
 void CurrentInspector_SetCustomBackgroundColor(ImVec4 color);
 void CurrentInspector_SetCustomBackgroundColor(ImU32 color);
 
+/* CurrentInspector_GetTransform
+ * Returns the transform of the current frame
+ * Useful when rendering image related stuff over the Inspector
+ *
+ */
+Transform2D CurrentInspector_GetTransform();
+
 /* CurrentInspector_GetID
  * Get the ID of the current inspector.  Currently only used for calling
- * ReleaseInspectorData. 
+ * ReleaseInspectorData.
  */
 ImGuiID CurrentInspector_GetID();
 
@@ -128,17 +137,17 @@ void DrawAlphaModeSelector();    // A combo box for selecting the alpha mode
 // [SECTION] CONTEXT-WIDE SETTINGS
 //-------------------------------------------------------------------------
 /* SetZoomRate
- * factor should be greater than 1.  A value of 1.5 means one mouse wheel 
- * scroll will increase zoom level by 50%. The factor used for zooming out is 
+ * factor should be greater than 1.  A value of 1.5 means one mouse wheel
+ * scroll will increase zoom level by 50%. The factor used for zooming out is
  * 1/factor. */
-void SetZoomRate(float factor); 
-                                
+void SetZoomRate(float factor);
+
 //-------------------------------------------------------------------------
 // [SECTION] ANNOTATION TOOLS
 //-------------------------------------------------------------------------
 
 /* DrawAnnotationLine
- * Convenience function to add a line to draw list using texel coordinates. 
+ * Convenience function to add a line to draw list using texel coordinates.
  */
 void DrawAnnotationLine(ImDrawList *drawList, ImVec2 fromTexel, ImVec2 toTexel, Transform2D texelsToPixels, ImU32 color);
 
@@ -146,11 +155,11 @@ void DrawAnnotationLine(ImDrawList *drawList, ImVec2 fromTexel, ImVec2 toTexel, 
 // [SECTION] Annotation Classes
 //-------------------------------------------------------------------------
 
-/* To draw annotations call DrawAnnotions in between BeginInspectorPanel and 
+/* To draw annotations call DrawAnnotions in between BeginInspectorPanel and
  * EndInspectorPanel.  Example usage:
  * DrawAnnotations(ValueText(ValueText::HexString));
- * 
- * To provide your own Annotation drawing class just define a class that 
+ *
+ * To provide your own Annotation drawing class just define a class that
  * implements the DrawAnnotation method.  See imgui_tex_inspect_demo.cpp
  * for an example.
  */
@@ -181,18 +190,18 @@ class ValueText
     void DrawAnnotation(ImDrawList *drawList, ImVec2 texel, Transform2D texelsToPixels, ImVec4 value);
 };
 
-/* Arrow 
- * An annotation class that draws an arrow inside each texel when zoom level is 
- * high enough. The direction and length of the arrow are determined by texel 
+/* Arrow
+ * An annotation class that draws an arrow inside each texel when zoom level is
+ * high enough. The direction and length of the arrow are determined by texel
  * values.
- * The X and Y components of the arrow is determined by the VectorIndex_x, and 
+ * The X and Y components of the arrow is determined by the VectorIndex_x, and
  * VectorIndex_y channels of the texel value.  Examples:
 
  * VectorIndex_x = 0,  VectorIndex_y = 1  means  X component is red and Y component is green
  * VectorIndex_x = 1,  VectorIndex_y = 2  means  X component is green and Y component is blue
  * VectorIndex_x = 0,  VectorIndex_y = 3  means  X component is red and Y component is alpha
  *
- * ZeroPoint is the texel value which corresponds to a zero length vector. E.g. 
+ * ZeroPoint is the texel value which corresponds to a zero length vector. E.g.
  * ZeroPoint = (0.5, 0.5) means (0.5, 0.5) will be drawn as a zero length arrow
  *
  * All public properties can be directly manipulated.  There are also presets that can be set
@@ -205,8 +214,8 @@ class Arrow
     int VectorIndex_x;
     int VectorIndex_y;
     ImVec2 LineScale;
-    ImVec2 ZeroPoint = {0, 0}; 
-                              
+    ImVec2 ZeroPoint = {0, 0};
+
     enum Preset
     {
         NormalMap,      // For normal maps. I.e. Arrow is in (R,G) channels.  128, 128 is zero point
@@ -243,7 +252,7 @@ struct Transform2D
 
 struct BufferDesc
 {
-    float         *Data_float     = nullptr; // Only one of these 
+    float         *Data_float     = nullptr; // Only one of these
     ImU8          *Data_uint8_t   = nullptr; // two pointers should be non NULL
     size_t         BufferByteSize = 0; // Size of buffer pointed to by one of above pointers
     int            Stride         = 0; // Measured in size of data type, not bytes!
@@ -255,7 +264,7 @@ struct BufferDesc
 
     unsigned char  ChannelCount   = 0; // Number of color channels in data. E.g. 2 means just red and green
 
-    /* These 4 values describe where each color is stored relative to the beginning of the texel in memory 
+    /* These 4 values describe where each color is stored relative to the beginning of the texel in memory
      * E.g. the float containing the red value would be at:
      * Data_float[texelIndex + bufferDesc.Red]
      */

@@ -13,9 +13,9 @@
 // This file is largely based on:
 // https://github.com/ocornut/imgui/blob/master/backends/imgui_impl_opengl3.cpp
 //
-// In the following section the ImGui_ImplOpenGL3_Init function has been 
-// changed to not rewrite global ImGui state.  It has also been wrapped in a 
-// namespace to not clash with the main ImGui version.  Aside from that this 
+// In the following section the ImGui_ImplOpenGL3_Init function has been
+// changed to not rewrite global ImGui state.  It has also been wrapped in a
+// namespace to not clash with the main ImGui version.  Aside from that this
 // section is identical to the imgui original.
 //
 // It's reproduced here because none of this code is exposed in the ImGui API
@@ -55,7 +55,7 @@
 #if defined(IMGUI_IMPL_OPENGL_LOADER_GL3W)
 #include <GL/gl3w.h>            // Needs to be initialized with gl3wInit() in user's code
 #elif defined(IMGUI_IMPL_OPENGL_LOADER_GLEW)
-#include <GL/glew.h>            // Needs to be initialized with glewInit() in user's code.
+#include <glew.h>            // Needs to be initialized with glewInit() in user's code.
 #elif defined(IMGUI_IMPL_OPENGL_LOADER_GLAD)
 #include <glad/glad.h>          // Needs to be initialized with gladLoadGL() in user's code.
 #elif defined(IMGUI_IMPL_OPENGL_LOADER_GLAD2)
@@ -285,9 +285,9 @@ static void ImGui_ImplOpenGL3_SetupRenderState(ImDrawData* draw_data, int fb_wid
 }
 
 // ===========================================================================
-//  END COPIED FROM imgui_impl_opengl3.cpp 
+//  END COPIED FROM imgui_impl_opengl3.cpp
 // ---------------------------------------------------------------------------
-//  Note that a lot of the following code still orginated in 
+//  Note that a lot of the following code still orginated in
 //  imgui_impl_opengl3.cpp but there are more changes from here on.
 // ===========================================================================
 
@@ -318,7 +318,7 @@ const GLchar* vertex_shader_glsl_120 =
 
 const GLchar* vertex_shader_glsl_130 =
     "uniform mat4 ProjMtx;\n"
-    "in vec2 Position;\n"  
+    "in vec2 Position;\n"
     "in vec2 UV;\n"
     "in vec4 Color;\n"
     "out vec2 Frag_UV;\n"
@@ -417,7 +417,7 @@ const GLchar *fragment_shader_glsl_130 = "uniform sampler2D Texture;\n"
                                          "        uv = Frag_UV;\n"
                                          "    vec2 texelEdge = step(mod(texel,vec2(1.0,1.0)),GridWidth);\n"
                                          "    float isGrid = max(texelEdge.x, texelEdge.y);\n"
-                                         "    vec4 ct = ColorTransform * texture(Texture, uv) + ColorOffset;\n"
+                                         "    vec4 ct = ColorTransform * texture2D(Texture, uv) + ColorOffset;\n"
                                          "    ct.rgb = ct.rgb * mix(1.0, ct.a, PremultiplyAlpha);\n"
                                          "    ct.rgb += BackgroundColor * (1.0-ct.a);\n"
                                          "    ct.a = mix(ct.a, 1.0, DisableFinalAlpha);\n"
@@ -478,7 +478,7 @@ const GLchar *fragment_shader_glsl_410_core = "uniform sampler2D Texture;\n"
                                               "        uv = Frag_UV;\n"
                                               "    vec2 texelEdge = step(mod(texel,vec2(1.0,1.0)),GridWidth);\n"
                                               "    float isGrid = max(texelEdge.x, texelEdge.y);\n"
-                                              "    vec4 ct = ColorTransform * texture(Texture, uv) + ColorOffset;\n"
+                                              "    vec4 ct = ColorTransform * texture2D(Texture, uv) + ColorOffset;\n"
                                               "    ct.rgb = ct.rgb * mix(1.0, ct.a, PremultiplyAlpha);\n"
                                               "    ct.rgb += BackgroundColor * (1.0-ct.a);\n"
                                               "    ct.a = mix(ct.a, 1.0, DisableFinalAlpha);\n"
@@ -486,7 +486,7 @@ const GLchar *fragment_shader_glsl_410_core = "uniform sampler2D Texture;\n"
                                               "    Out_Color = ct;\n"
                                               "}\n";
 
-/* BuildShader is from imgui_impl_opengl3.cpp.  Only change is to query the 
+/* BuildShader is from imgui_impl_opengl3.cpp.  Only change is to query the
  * additional uniform locations for the new fragment shader*/
 void BuildShader()
 {
@@ -553,7 +553,7 @@ void BuildShader()
         // Change from imgui_impl_opengl3.cpp  (Our shader doesn't use vertex color)
         //g_AttribLocationVtxColor = (GLuint)glGetAttribLocation(g_ShaderHandle, "Color");
 
-        // New uniforms used by imgui_tex_inspect 
+        // New uniforms used by imgui_tex_inspect
         g_UniformLocationTextureSize          = glGetUniformLocation(g_ShaderHandle, "TextureSize");
         g_UniformLocationColorTransform       = glGetUniformLocation(g_ShaderHandle, "ColorTransform");
         g_UniformLocationColorOffset          = glGetUniformLocation(g_ShaderHandle, "ColorOffset");

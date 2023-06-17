@@ -145,7 +145,7 @@ bool BeginInspectorPanel(const char *title, ImTextureID texture, ImVec2 textureS
     inspector->TextureSize = textureSize;
     inspector->Initialized = true;
 
-    // Handle incoming flags. We keep special track of the 
+    // Handle incoming flags. We keep special track of the
     // newly set flags because somethings only take effect
     // the first time the flag is set.
     InspectorFlags newlySetFlags = ctx->NextPanelOptions.ToSet;
@@ -178,6 +178,17 @@ bool BeginInspectorPanel(const char *title, ImTextureID texture, ImVec2 textureS
     ImVec2 availablePanelSize = panelSize - ImVec2(borderWidth, borderWidth) * 2;
 
     {
+        // Always set scale min in change of textures
+        if(inspector->Flags & InspectorFlags_NoZoomOut)
+        {
+            float minScale = 1.0f;
+            if(inspector->Flags & InspectorFlags_FillVertical)
+                minScale = availablePanelSize.y / textureSize.y;
+            else if(inspector->Flags & InspectorFlags_FillHorizontal)
+                minScale = availablePanelSize.y / textureSize.y;
+            inspector->ScaleMin = ImVec2(minScale, minScale);
+        }
+
         // Possibly update scale
         float newScale = -1;
 
@@ -213,7 +224,7 @@ bool BeginInspectorPanel(const char *title, ImTextureID texture, ImVec2 textureS
 
     if ((inspector->Flags & InspectorFlags_ShowWrap) == 0)
     {
-        /* Don't crop the texture to UV [0,1] range.  What you see outside this 
+        /* Don't crop the texture to UV [0,1] range.  What you see outside this
          * range will depend on API and texture properties */
         if (textureSizePixels.x < availablePanelSize.x)
         {
@@ -252,17 +263,17 @@ bool BeginInspectorPanel(const char *title, ImTextureID texture, ImVec2 textureS
     inspector->ViewSize = viewSize;
     inspector->ViewSizeUV = viewSizeUV;
 
-    /* We use mouse scroll to zoom so we don't want scroll to propagate to 
-     * parent window. For this to happen we must NOT set 
-     * ImGuiWindowFlags_NoScrollWithMouse.  This seems strange but it's the way 
-     * ImGui works.  Also we must ensure the ScrollMax.y is not zero for the 
+    /* We use mouse scroll to zoom so we don't want scroll to propagate to
+     * parent window. For this to happen we must NOT set
+     * ImGuiWindowFlags_NoScrollWithMouse.  This seems strange but it's the way
+     * ImGui works.  Also we must ensure the ScrollMax.y is not zero for the
      * child window. */
     if (ImGui::BeginChild(title, panelSize, false, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoMove))
     {
         // See comment above
         ImGui::GetCurrentWindow()->ScrollMax.y = 1.0f;
 
-        // Callback for using our own image shader 
+        // Callback for using our own image shader
         ImGui::GetWindowDrawList()->AddCallback(InspectorDrawCallback, inspector);
 
         // Keep track of size of area that we draw for borders later
@@ -275,8 +286,8 @@ bool BeginInspectorPanel(const char *title, ImTextureID texture, ImVec2 textureS
         ImGui::Image(texture, viewSize, uv0, uv1);
         ImGui::GetWindowDrawList()->AddCallback(ImDrawCallback_ResetRenderState, nullptr);
 
-        /* Matrices for going back and forth between texel coordinates in the 
-         * texture and screen coordinates based on where texture is drawn. 
+        /* Matrices for going back and forth between texel coordinates in the
+         * texture and screen coordinates based on where texture is drawn.
          * Useful for annotations and mouse hover etc. */
         inspector->TexelsToPixels = GetTexelsToPixels(inspector->ViewTopLeftPixel, viewSize, uv0, viewSizeUV, inspector->TextureSize);
         inspector->PixelsToTexels = inspector->TexelsToPixels.Inverse();
@@ -306,7 +317,7 @@ bool BeginInspectorPanel(const char *title, ImTextureID texture, ImVec2 textureS
         bool hovered = ImGui::IsWindowHovered();
 
         {  //DRAGGING
-            
+
             // start drag
             if (!inspector->IsDragging && hovered && IO.MouseClicked[ctx->Input.PanButton])
             {
@@ -355,7 +366,7 @@ bool BeginInspectorPanel(const char *title, ImTextureID texture, ImVec2 textureS
                     scale = ImFloorSigned(scale);
                 }
             }
-            /* To make it easy to get back to 1:1 size we ensure that we stop 
+            /* To make it easy to get back to 1:1 size we ensure that we stop
              * here without going straight past it*/
             if ((prevScale < 1 && scale > 1) || (prevScale > 1 && scale < 1))
             {
@@ -382,7 +393,7 @@ bool BeginInspectorPanel(const char *name, ImTextureID texture, ImVec2 textureSi
 {
     // Correct the size to include the border, but preserve 0 which has a special meaning
     return BeginInspectorPanel(name, texture, textureSize, flags,
-                               SizeIncludingBorder{ImVec2{size.size.x == 0 ? 0 : size.size.x + 2, 
+                               SizeIncludingBorder{ImVec2{size.size.x == 0 ? 0 : size.size.x + 2,
                                                           size.size.y == 0 ? 0 : size.size.y + 2}});
 }
 
@@ -392,14 +403,18 @@ void EndInspectorPanel()
     const ImU32 outerBorderColour = 0xFF888888;
     Inspector *inspector = GContext->CurrentInspector;
 
-    // Draw out border around whole inspector panel
-    ImGui::GetWindowDrawList()->AddRect(inspector->PanelTopLeftPixel, inspector->PanelTopLeftPixel + inspector->PanelSize,
-                                        outerBorderColour);
+    if(!(inspector->Flags & InspectorFlags_NoBorder))
+    {
 
-    // Draw innder border around texture.  If zoomed in this will completely cover the outer border
-    ImGui::GetWindowDrawList()->AddRect(inspector->ViewTopLeftPixel - ImVec2(1, 1),
-                                        inspector->ViewTopLeftPixel + inspector->ViewSize + ImVec2(1, 1), innerBorderColour);
+        // Draw out border around whole inspector panel
+        ImGui::GetWindowDrawList()->AddRect(inspector->PanelTopLeftPixel, inspector->PanelTopLeftPixel + inspector->PanelSize,
+                                            outerBorderColour);
 
+        // Draw innder border around texture.  If zoomed in this will completely cover the outer border
+        ImGui::GetWindowDrawList()->AddRect(inspector->ViewTopLeftPixel - ImVec2(1, 1),
+                                            inspector->ViewTopLeftPixel + inspector->ViewSize + ImVec2(1, 1), innerBorderColour);
+
+    }
     ImGui::EndChild();
 
     // We set this back to false every frame in case the texture is dynamic
@@ -423,9 +438,9 @@ void ReleaseInspectorData(ImGuiID ID)
         inspector->DataBufferSize = 0;
     }
 
-    /* In a later version we will remove inspector from the inspector table 
-     * altogether. For now we reset the whole inspector structure to prevent 
-     * clients relying on persisted data. 
+    /* In a later version we will remove inspector from the inspector table
+     * altogether. For now we reset the whole inspector structure to prevent
+     * clients relying on persisted data.
      */
     *inspector = Inspector();
 }
@@ -525,6 +540,12 @@ void CurrentInspector_SetCustomBackgroundColor(ImU32 color)
     CurrentInspector_SetCustomBackgroundColor(ImGui::ColorConvertU32ToFloat4(color));
 }
 
+Transform2D CurrentInspector_GetTransform()
+{
+    Inspector* inspector = GContext->CurrentInspector;
+    return inspector->PixelsToTexels;
+}
+
 void DrawColorMatrixEditor()
 {
     const char *colorVectorNames[] = {"R", "G", "B", "A", "1"};
@@ -532,7 +553,7 @@ void DrawColorMatrixEditor()
     const float dragSpeed = 0.02f;
     Inspector *inspector = GContext->CurrentInspector;
     ShaderOptions *shaderOptions = &inspector->ActiveShaderOptions;
-    
+
     // Left hand side of equation. The final color vector which is the actual drawn color
     TextVector("FinalColorVector", finalColorVectorNames, IM_ARRAYSIZE(finalColorVectorNames));
 
@@ -702,22 +723,22 @@ void RoundPanPos(Inspector *inspector)
 {
     if ((inspector->Flags & InspectorFlags_ShowWrap) > 0)
     {
-        /* PanPos is the point in the center of the current view. Allow the 
-         * user to pan anywhere as long as the view center is inside the 
+        /* PanPos is the point in the center of the current view. Allow the
+         * user to pan anywhere as long as the view center is inside the
          * texture.*/
         inspector->PanPos = ImClamp(inspector->PanPos, ImVec2(0, 0), ImVec2(1, 1));
     }
     else
     {
-        /* When ShowWrap mode is disabled the limits are a bit more strict. We 
-         * try to keep it so that the user cannot pan past the edge of the 
+        /* When ShowWrap mode is disabled the limits are a bit more strict. We
+         * try to keep it so that the user cannot pan past the edge of the
          * texture at all.*/
         ImVec2 absViewSizeUV = Abs(inspector->ViewSizeUV);
         inspector->PanPos = ImMax(inspector->PanPos - absViewSizeUV / 2, ImVec2(0, 0)) + absViewSizeUV / 2;
         inspector->PanPos = ImMin(inspector->PanPos + absViewSizeUV / 2, ImVec2(1, 1)) - absViewSizeUV / 2;
     }
 
-    /* If inspector->scale is 1 then we should ensure that pixels are aligned 
+    /* If inspector->scale is 1 then we should ensure that pixels are aligned
      * with texel centers to get pixel-perfect texture rendering*/
     ImVec2 topLeftSubTexel = inspector->PanPos * inspector->Scale * inspector->TextureSize - inspector->ViewSize * 0.5f;
 
@@ -745,7 +766,7 @@ void SetScale(Inspector *inspector, ImVec2 scale)
     inspector->ViewSizeUV *= inspector->Scale / scale;
 
     inspector->Scale = scale;
-    
+
     // Only force nearest sampling if zoomed in
     inspector->ActiveShaderOptions.ForceNearestSampling =
         (inspector->Scale.x > 1.0f || inspector->Scale.y > 1.0f) && !HasFlag(inspector->Flags, InspectorFlags_NoForceFilterNearest);
@@ -840,9 +861,9 @@ void TextVector(const char *title, const char *const *strings, int stringCount)
     ImGui::EndGroup();
 }
 
-const ImGuiCol disabledUIColorIds[] = {ImGuiCol_FrameBg, 
-                                       ImGuiCol_FrameBgActive, 
-                                       ImGuiCol_FrameBgHovered, 
+const ImGuiCol disabledUIColorIds[] = {ImGuiCol_FrameBg,
+                                       ImGuiCol_FrameBgActive,
+                                       ImGuiCol_FrameBgHovered,
                                        ImGuiCol_Text,
                                        ImGuiCol_CheckMark};
 
@@ -892,8 +913,8 @@ Transform2D GetTexelsToPixels(ImVec2 screenTopLeft, ImVec2 screenViewSize, ImVec
     return transform;
 }
 
-/* Fills in the AnnotationsDesc structure which provides all necessary 
- * information for code which draw annoations.  Returns false if no annoations 
+/* Fills in the AnnotationsDesc structure which provides all necessary
+ * information for code which draw annoations.  Returns false if no annoations
  * should be drawn.  The maxAnnotatedTexels argument provides a way to override
  * the default maxAnnotatedTexels.
  */
@@ -907,10 +928,10 @@ bool GetAnnotationDesc(AnnotationsDesc *ad, ImU64 maxAnnotatedTexels)
     }
     if (maxAnnotatedTexels != 0)
     {
-        /* Check if we would draw too many annotations.  This is to avoid poor 
-         * frame rate when too zoomed out.  Increase MaxAnnotatedTexels if you 
-         * want to draw more annotations.  Note that we don't use texelTL & 
-         * texelBR to get total visible texels as this would cause flickering 
+        /* Check if we would draw too many annotations.  This is to avoid poor
+         * frame rate when too zoomed out.  Increase MaxAnnotatedTexels if you
+         * want to draw more annotations.  Note that we don't use texelTL &
+         * texelBR to get total visible texels as this would cause flickering
          * while panning as the exact number of visible texels changes.
         */
 
@@ -939,8 +960,8 @@ bool GetAnnotationDesc(AnnotationsDesc *ad, ImU64 maxAnnotatedTexels)
     return false;
 }
 
-/* Calculates currently visible region of texture (which is returned in texelTL 
- * and texelBR) then also actually ensure that that data is in memory. Returns 
+/* Calculates currently visible region of texture (which is returned in texelTL
+ * and texelBR) then also actually ensure that that data is in memory. Returns
  * false if fetching data failed.
  */
 bool GetVisibleTexelRegionAndGetData(Inspector *inspector, ImVec2 &texelTL, ImVec2 &texelBR)
@@ -961,7 +982,7 @@ bool GetVisibleTexelRegionAndGetData(Inspector *inspector, ImVec2 &texelTL, ImVe
         ImSwap(texelTL.y, texelBR.y);
     }
 
-    /* Add ImVec2(1,1) because we want to draw partially visible texels on the 
+    /* Add ImVec2(1,1) because we want to draw partially visible texels on the
      * bottom and right edges.*/
     texelBR += ImVec2(1,1);
 
@@ -989,8 +1010,8 @@ bool GetVisibleTexelRegionAndGetData(Inspector *inspector, ImVec2 &texelTL, ImVe
     return false;
 }
 
-/* This is a function the backends can use to allocate a buffer for storing 
- * texture texel data.  The buffer is owned by the inpsector so the backend 
+/* This is a function the backends can use to allocate a buffer for storing
+ * texture texel data.  The buffer is owned by the inpsector so the backend
  * code doesn't need to worry about freeing it.
  */
 ImU8 *GetBuffer(Inspector *inspector, size_t bytes)
@@ -1027,8 +1048,8 @@ ImVec4 GetTexel(const BufferDesc *bd, int x, int y)
     {
         const float *texel = bd->Data_float + offset;
         // It's possible our buffer doesn't have all 4 channels so fill gaps in with zeros
-        return ImVec4(                   texel[bd->Red], 
-                bd->ChannelCount >= 2 ?  texel[bd->Green]  : 0, 
+        return ImVec4(                   texel[bd->Red],
+                bd->ChannelCount >= 2 ?  texel[bd->Green]  : 0,
                 bd->ChannelCount >= 3 ?  texel[bd->Blue]   : 0,
                 bd->ChannelCount >= 4 ?  texel[bd->Alpha]  : 0);
     }
@@ -1037,8 +1058,8 @@ ImVec4 GetTexel(const BufferDesc *bd, int x, int y)
         const ImU8 *texel = bd->Data_uint8_t + offset;
         // It's possible our buffer doesn't have all 4 channels so fill gaps in with zeros.
         // Also map from [0,255] to [0,1]
-        return ImVec4(                  (float)texel[bd->Red]   / 255.0f, 
-                bd->ChannelCount >= 2 ? (float)texel[bd->Green] / 255.0f : 0, 
+        return ImVec4(                  (float)texel[bd->Red]   / 255.0f,
+                bd->ChannelCount >= 2 ? (float)texel[bd->Green] / 255.0f : 0,
                 bd->ChannelCount >= 3 ? (float)texel[bd->Blue]  / 255.0f : 0,
                 bd->ChannelCount >= 4 ? (float)texel[bd->Alpha] / 255.0f  : 0);
     }
@@ -1053,8 +1074,8 @@ ImVec4 GetTexel(const BufferDesc *bd, int x, int y)
 
 ValueText::ValueText(Format format)
 {
-    /* The ValueText annotation draws a string inside each texel displaying the 
-     * values of each channel. We now select a format string based on the enum 
+    /* The ValueText annotation draws a string inside each texel displaying the
+     * values of each channel. We now select a format string based on the enum
      * parameter*/
     switch (format)
     {
@@ -1103,7 +1124,7 @@ void ValueText::DrawAnnotation(ImDrawList *drawList, ImVec2 texel, Transform2D t
         return;
     }
 
-    /* Choose black or white text based on how bright the texel.  I.e. don't 
+    /* Choose black or white text based on how bright the texel.  I.e. don't
      * draw black text on a dark background or vice versa. */
     float brightness = (value.x + value.y + value.z) * value.w / 3;
     ImU32 lineColor = brightness > 0.5 ? 0xFF000000 : 0xFFFFFFFF;
@@ -1114,7 +1135,7 @@ void ValueText::DrawAnnotation(ImDrawList *drawList, ImVec2 texel, Transform2D t
     }
     else
     {
-        /* Map [0,1] to [0,255]. Also clamp it since input data wasn't 
+        /* Map [0,1] to [0,255]. Also clamp it since input data wasn't
          * necessarily in [0,1] range. */
         ImU8 r = (ImU8)Round((ImClamp(value.x, 0.0f, 1.0f)) * 255);
         ImU8 g = (ImU8)Round((ImClamp(value.y, 0.0f, 1.0f)) * 255);
