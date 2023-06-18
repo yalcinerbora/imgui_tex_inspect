@@ -18,3 +18,4 @@ examples/*/x64/*
 ## Editor files
 compile_commands.json
 *.bak
+.vscode

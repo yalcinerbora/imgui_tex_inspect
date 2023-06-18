@@ -668,12 +668,12 @@ bool BackEnd_GetData(Inspector *inspector, ImTextureID texture, int /*x*/, int /
 #ifdef IMGUI_TEX_INSPECT_FLOAT_READ_ENABLED
     size_t bufferSize      = sizeof(float) * texWidth * texHeight * numChannels;
     bufferDesc->Data_float = (float *)GetBuffer(inspector, bufferSize);
-    GLuint type            = GL_FLOAT;
+    GLenum type            = GL_FLOAT;
     data = (void *)bufferDesc->Data_float;
 #else
     size_t bufferSize        = sizeof(uint8_t) * texWidth * texHeight * numChannels;
     bufferDesc->Data_uint8_t = (uint8_t *)GetBuffer(inspector, bufferSize);
-    GLuint type              = GL_UNSIGNED_BYTE;
+    GLenum type              = GL_UNSIGNED_BYTE;
     data                     = (void *)bufferDesc->Data_uint8_t;
 #endif
 
